@@ -1,0 +1,108 @@
+import os
+import pygame
+import customtkinter as ctk
+
+PURPLE = "#bc13fe"
+DARK_BG = "#111111"
+SECONDARY_BG = "#080808"
+
+class NeonSoundPad(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("SoundPad")
+        self.geometry("700x550")
+        self.configure(fg_color=DARK_BG)
+
+        pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+        pygame.mixer.set_num_channels(32)
+        
+        self.current_sound = None
+
+        self.setup_ui()
+        self.refresh_sounds()
+
+    def setup_ui(self):
+
+        self.header = ctk.CTkLabel(self, text="SoundPad", 
+                                  font=("Orbitron", 26, "bold"), text_color=PURPLE)
+        self.header.pack(pady=20)
+
+        self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color=SECONDARY_BG, 
+                                                   border_color=PURPLE, border_width=2)
+        self.scroll_frame.pack(pady=10, padx=25, fill="both", expand=True)
+
+        self.bottom_panel = ctk.CTkFrame(self, fg_color=DARK_BG)
+        self.bottom_panel.pack(side="bottom", fill="x", padx=25, pady=15)
+
+        self.track_info = ctk.CTkLabel(self.bottom_panel, text="SELECT TRACK...", 
+                                      font=("Consolas", 13), text_color=PURPLE)
+        self.track_info.pack(pady=5)
+
+        self.controls = ctk.CTkFrame(self.bottom_panel, fg_color="transparent")
+        self.controls.pack(fill="x")
+
+        self.stop_btn = ctk.CTkButton(self.controls, text="STOP", width=120, height=35,
+                                     fg_color="#440000", hover_color="#770000", 
+                                     font=("Segoe UI", 12, "bold"),
+                                     command=self.stop_all)
+        self.stop_btn.pack(side="left", padx=5)
+
+        self.vol_label = ctk.CTkLabel(self.controls, text="VOLUME", text_color="gray", font=("Segoe UI", 12))
+        self.vol_label.pack(side="right", padx=(5, 0))
+
+        self.volume_slider = ctk.CTkSlider(self.controls, from_=0, to=1, 
+                                          width=180,
+                                          button_color=PURPLE, 
+                                          progress_color=PURPLE,
+                                          command=self.update_volume)
+        self.volume_slider.set(0.7)
+        self.volume_slider.pack(side="right", padx=10)
+
+    def refresh_sounds(self):
+        for widget in self.scroll_frame.winfo_children():
+            widget.destroy()
+
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        valid_ext = (".wav", ".mp3", ".ogg")
+        
+        files_found = []
+        for root, _, files in os.walk(base_path):
+            for f in files:
+                if f.lower().endswith(valid_ext):
+                    files_found.append(os.path.join(root, f))
+
+        for path in files_found:
+            filename = os.path.basename(path)
+
+            display_name = os.path.splitext(filename)[0].replace("-", " ").upper()
+            
+            btn = ctk.CTkButton(self.scroll_frame, text=f"  {display_name}", 
+                                anchor="w", height=40,
+                                fg_color="#1a1a1a", border_color=PURPLE, border_width=1,
+                                hover_color="#2a0045",
+                                command=lambda p=path, n=display_name: self.play_effect(p, n))
+            btn.pack(fill="x", pady=3, padx=5)
+
+    def play_effect(self, path, name):
+        try:
+            pygame.mixer.stop()
+            self.current_sound = pygame.mixer.Sound(path)
+            self.current_sound.set_volume(self.volume_slider.get())
+            self.current_sound.play()
+            self.track_info.configure(text=f"PLAYING: {name}")
+        except Exception as e:
+            self.track_info.configure(text=f"ERROR: {str(e)}")
+
+    def update_volume(self, value):
+        """Меняет громкость"""
+        if self.current_sound:
+            self.current_sound.set_volume(value)
+
+    def stop_all(self):
+        pygame.mixer.stop()
+        self.track_info.configure(text="STOPPED")
+
+if __name__ == "__main__":
+    app = NeonSoundPad()
+    app.mainloop()
